@@ -1,16 +1,35 @@
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 
 const App = () => {
   const [input, setInput] = useState("Đức, Hiển, Huyền, Luân, Quyên, Thức, Tiên, Trang");
   const [unitInput, setUnitInput] = useState(10);
   const [unit, setUnit] = useState(10);
   const [rounds, setRounds] = useState([]);
+  const [isCopied, setCopied] = useState(false);
   const [isWin, setWin] = useState(false);
   const [isShow, setShow] = useState(false);
+  const [isShowResult, setShowResult] = useState(false);
   const [isSettings, setSettings] = useState(false);
   const [players, setPlayers] = useState({});
   const [winners, setWinners] = useState([]);
   const [proxy, setProxy] = useState("");
+  const resultRef = useRef();
+
+  useEffect(() => {
+    const storeRounds = JSON.parse(localStorage.getItem("loto-rounds"));
+    if (storeRounds) setRounds(storeRounds);
+
+    const storePlayers = JSON.parse(localStorage.getItem("loto-players"));
+    if (storePlayers) setPlayers(storePlayers);
+  }, []);
+
+  const saveRounds = (rounds) => {
+    localStorage.setItem("loto-rounds", JSON.stringify(rounds));
+  };
+
+  const savePlayers = (players) => {
+    localStorage.setItem("loto-players", JSON.stringify(players));
+  };
 
   const data = useMemo(() => {
     let text = "Có người kinh rồi!";
@@ -91,8 +110,11 @@ const App = () => {
   };
 
   const handleNew = () => {
-    setPlayers(getPlayers());
+    const newPlayers = getPlayers();
+    setPlayers(newPlayers);
+    savePlayers(newPlayers);
     setRounds([]);
+    saveRounds([]);
     setWin(false);
     setShow(false);
     setSettings(false);
@@ -101,7 +123,11 @@ const App = () => {
   };
 
   const handleAdd = () => {
-    setPlayers((prev) => ({ ...prev, ...getPlayers(true) }));
+    setPlayers((prev) => {
+      const newPlayers = { ...prev, ...getPlayers(true) };
+      savePlayers(newPlayers);
+      return newPlayers;
+    });
   };
 
   const handleCalculate = () => {
@@ -118,7 +144,12 @@ const App = () => {
         return obj;
       }, {});
       setPlayers(newPlayers);
-      setRounds((prev) => [...prev, [winner]]);
+      savePlayers(newPlayers);
+      setRounds((prev) => {
+        const newRounds = [...prev, [winner]];
+        saveRounds(newRounds);
+        return newRounds;
+      });
     } else if (winners.length > 1) {
       const prize = getPrize() / winners.length;
       const newPlayers = Object.entries(players).reduce((obj, [name, values]) => {
@@ -140,11 +171,17 @@ const App = () => {
         return obj;
       }, {});
       setPlayers(newPlayers);
-      setRounds((prev) => [...prev, winners]);
+      savePlayers(newPlayers);
+      setRounds((prev) => {
+        const newRounds = [...prev, winners];
+        saveRounds(newRounds);
+        return newRounds;
+      });
     }
   };
 
   const handleWin = () => {
+    setCopied(false);
     if (isWin && (winners.length === 1 || (winners.length > 1 && proxy.length > 0))) {
       handleCalculate();
       setWinners([]);
@@ -200,6 +237,7 @@ const App = () => {
       return obj;
     }, {});
     setPlayers(newPlayers);
+    savePlayers(newPlayers);
   };
 
   const handleBet = (target, isSubtract = false) => {
@@ -211,6 +249,7 @@ const App = () => {
       return obj;
     }, {});
     setPlayers(newPlayers);
+    savePlayers(newPlayers);
   };
 
   const handleDelete = (target) => {
@@ -222,11 +261,29 @@ const App = () => {
       return obj;
     }, {});
     setPlayers(newPlayers);
+    savePlayers(newPlayers);
   };
 
   const displayMoney = (money) => {
-    if (money % 1 === 0) return money + "k";
-    return money.toFixed(1) + "k";
+    return parseFloat(money.toFixed(2)) + "k";
+  };
+
+  const displayTrophies = (player) => {
+    const trophies = rounds.reduce((total, cur) => {
+      if (cur.includes(player)) total += 1 / cur.length;
+      return total;
+    }, 0);
+    return parseFloat(trophies.toFixed(2));
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(resultRef.current.innerText);
+    setCopied(true);
+  };
+
+  const handleToggleResult = () => {
+    setShowResult((prev) => !prev);
+    setCopied(false);
   };
 
   return (
@@ -234,19 +291,7 @@ const App = () => {
       <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
         <div className="text-5xl font-black text-red-400">LÔ TÔ SHOW</div>
         {Object.keys(players).length > 0 && (
-          <div className="flex rounded-lg border border-white/50 px-6 py-3">
-            {isSettings ? (
-              <input
-                type="text"
-                value={unitInput}
-                className="w-[2ch] rounded-lg bg-transparent text-yellow-400 focus:outline-none"
-                onChange={(event) => setUnitInput(event.target.value)}
-              />
-            ) : (
-              <div>{unit}</div>
-            )}
-            <div>k / 1 tờ</div>
-          </div>
+          <div className="flex rounded-lg border border-white/50 px-6 py-3">{unit}k / 1 tờ</div>
         )}
         <div className="flex flex-col items-center gap-4 sm:flex-row">
           <input
@@ -271,67 +316,230 @@ const App = () => {
       </div>
       {Object.keys(players).length > 0 && (
         <div className="flex flex-col gap-8">
-          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <div className="flex flex-col items-center gap-4 sm:flex-row">
-              <button
-                className={`button large ${isSettings ? "disabled" : isWin ? "active" : null}`}
-                onClick={handleWin}
-              >
-                <div className="flex items-center gap-2">
-                  <ion-icon name={data.icon}></ion-icon>
-                  <div>{data.text}</div>
-                </div>
-              </button>
-              {isWin && (
-                <button className="button large cancel" onClick={handleCancel}>
-                  <div className="flex items-center gap-2">
-                    <ion-icon name="close-circle"></ion-icon>
-                    <div>Huỷ</div>
-                  </div>
-                </button>
-              )}
-            </div>
-            <div className="flex flex-wrap justify-center gap-4">
-              {winners.map((winner) => (
+          {isWin ? (
+            <div className="fixed inset-0 z-10 flex flex-col items-center gap-4 bg-[url('/src/images/background.png')] p-8 sm:relative sm:flex-row sm:justify-between sm:p-0">
+              <div className="flex flex-col items-center gap-4 sm:flex-row">
                 <button
-                  key={winner}
-                  className={`button ${proxy === winner ? "active" : ""}`}
-                  onClick={() => handleProxy(winner)}
+                  className={`button sm:large ${isSettings ? "disabled" : isWin ? "active" : null}`}
+                  onClick={handleWin}
                 >
-                  {winner}
-                </button>
-              ))}
-            </div>
-            {winners.length > 0 && (
-              <div className="text-center text-2xl sm:text-start">
-                <div>
-                  Tổng giải thưởng: <span className="text-yellow-400">{displayMoney(getPrize() * unit)}</span>
-                </div>
-                {winners.length > 1 && (
-                  <div>
-                    Mỗi người nhận:{" "}
-                    <span className="text-yellow-400">{displayMoney((getPrize() * unit) / winners.length)}</span>
+                  <div className="flex items-center gap-2">
+                    <ion-icon name={data.icon}></ion-icon>
+                    <div>{data.text}</div>
                   </div>
+                </button>
+                {isWin && (
+                  <button className="button sm:large cancel" onClick={handleCancel}>
+                    <div className="flex items-center gap-2">
+                      <ion-icon name="close-circle"></ion-icon>
+                      <div>Huỷ</div>
+                    </div>
+                  </button>
                 )}
               </div>
-            )}
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_6fr]">
-            <div className="flex flex-col gap-4">
-              <div className="title">Kết quả</div>
-              <div>
-                {rounds.map((names, index) => (
-                  <div key={names + index}>
-                    Ván {index + 1}: <span className="text-red-400">{names.join(", ")}</span>{" "}
-                    {names.length > 1 ? "kinh trùng" : "kinh"}
+              <div className="flex flex-wrap justify-center gap-4">
+                {winners.map((winner) => (
+                  <button
+                    key={winner}
+                    className={`button ${proxy === winner ? "active" : ""}`}
+                    onClick={() => handleProxy(winner)}
+                  >
+                    {winner}
+                  </button>
+                ))}
+              </div>
+              {winners.length > 0 && (
+                <div className="text-center text-2xl sm:text-start">
+                  <div>
+                    <span>Tổng giải thưởng: </span>
+                    <span className="text-yellow-400">{displayMoney(getPrize() * unit)}</span>
+                  </div>
+                  {winners.length > 1 && (
+                    <div>
+                      <span>Mỗi người nhận: </span>
+                      <span className="text-yellow-400">{displayMoney((getPrize() * unit) / winners.length)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="flex flex-wrap justify-center gap-4 border-t border-white/20 pt-4 sm:hidden">
+                {getActivePlayerNames().map((name) => (
+                  <div
+                    key={name}
+                    onClick={() => handleSelect(name)}
+                    className={`button ${winners.includes(name) ? "active" : null}`}
+                  >
+                    {name}
                   </div>
                 ))}
               </div>
             </div>
+          ) : (
+            <button className="button large self-center sm:self-start" onClick={handleWin}>
+              <div className="flex items-center gap-2">
+                <ion-icon name={data.icon}></ion-icon>
+                <div>{data.text}</div>
+              </div>
+            </button>
+          )}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_6fr]">
             <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between" onClick={handleToggleResult}>
+                <div className="title">Quá trình chơi</div>
+                <div className="text-2xl text-blue-400">
+                  {isShowResult ? <ion-icon name="chevron-up"></ion-icon> : <ion-icon name="chevron-down"></ion-icon>}
+                </div>
+              </div>
+              {isShowResult &&
+                (rounds.length > 0 ? (
+                  <div className="flex flex-col gap-4">
+                    {isCopied ? (
+                      <button className="button active flex items-center gap-2 self-center">
+                        <ion-icon name="cloud-done"></ion-icon>
+                        <div>Đã sao chép</div>
+                      </button>
+                    ) : (
+                      <button className="button flex items-center gap-2 self-center" onClick={handleCopy}>
+                        <ion-icon name="cloud"></ion-icon>
+                        <div>Sao chép</div>
+                      </button>
+                    )}
+                    <div ref={resultRef}>
+                      {rounds.map((names, index) => (
+                        <div key={names + index}>
+                          <span>Ván {index + 1}: </span>
+                          <span className="text-red-400">{names.join(", ")} </span>
+                          <span>{names.length > 1 ? "kinh trùng" : "kinh"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border-t border-white/20 py-2">Chưa chơi ván nào!</div>
+                ))}
+            </div>
+            <div className="flex flex-col gap-4">
+              {isSettings && (
+                <div className="fixed inset-0 z-10 flex flex-col gap-4 overflow-scroll bg-[url('/src/images/background.png')] p-4">
+                  <div className="flex items-center justify-between">
+                    <button className="button flex items-center gap-2" onClick={handleSettings}>
+                      <ion-icon name="arrow-undo-circle"></ion-icon>
+                      <div>Trở về</div>
+                    </button>
+                    <div className="flex rounded-lg border border-white/50 px-6 py-3">
+                      <input
+                        type="text"
+                        value={unitInput}
+                        className="w-[2ch] rounded-lg bg-transparent text-yellow-400 focus:outline-none"
+                        onChange={(event) => setUnitInput(event.target.value)}
+                      />
+                      <div>k / 1 tờ</div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    {Object.entries(players).map(([player, values]) => (
+                      <div
+                        key={player}
+                        className={`player ${
+                          !values.isActive ? "cursor-default text-white/50 hover:border-white/50" : null
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-4 sm:flex-row">
+                          <div className="truncate text-2xl uppercase">{player}</div>
+                          <div className="flex gap-12">
+                            <div className={`item relative ${values.isActive ? "green" : "disabled"}`}>
+                              <ion-icon name="reader"></ion-icon>
+                              <div>{values.bet}</div>
+                              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                                <div className="flex cursor-pointer gap-16 text-2xl text-green-200">
+                                  <div className="hover:text-green-400" onClick={() => handleBet(player, true)}>
+                                    <ion-icon name="chevron-back-circle"></ion-icon>
+                                  </div>
+                                  <div className="hover:text-green-400" onClick={() => handleBet(player)}>
+                                    <ion-icon name="chevron-forward-circle"></ion-icon>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <div
+                                className={`item ${values.isActive ? "remove" : "add"}`}
+                                onClick={() => handleActive(player)}
+                              >
+                                {values.isActive ? (
+                                  <ion-icon name="person-remove"></ion-icon>
+                                ) : (
+                                  <ion-icon name="person-add"></ion-icon>
+                                )}
+                              </div>
+                              <div className="item remove" onClick={() => handleDelete(player)}>
+                                <ion-icon name="trash"></ion-icon>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {isShow && (
+                <div className="fixed inset-0 z-10 flex flex-col gap-4 overflow-scroll bg-[url('/src/images/background.png')] p-4">
+                  <button className="button flex items-center gap-2" onClick={handleShow}>
+                    <ion-icon name="arrow-undo-circle"></ion-icon>
+                    <div>Trở về</div>
+                  </button>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    {Object.entries(players).map(([player, values]) => (
+                      <div className="player" key={player}>
+                        <div className="flex items-center justify-between">
+                          <div className="truncate text-2xl uppercase">{player}</div>
+                          <div className="flex gap-2">
+                            <div className="item green">
+                              <ion-icon name="reader"></ion-icon>
+                              <div>{values.bet}</div>
+                            </div>
+                            <div className="item yellow">
+                              <ion-icon name="trophy"></ion-icon>
+                              <div>{displayTrophies(player)}</div>
+                            </div>
+                            <div className="item blue">
+                              <ion-icon name="wallet"></ion-icon>
+                              <div>
+                                {displayMoney(
+                                  Object.values(values.scores).reduce((total, cur) => {
+                                    total += cur;
+                                    return total;
+                                  }, 0)
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        {Object.entries(values.scores).length > 0 ? (
+                          <div>
+                            {Object.entries(values.scores).map(([name, value]) => (
+                              <div key={name} className="border-t border-white/20 py-2 text-end">
+                                <span>{name}: </span>
+                                <span className={`${value > 0 ? "text-green-400" : "text-red-400"}`}>
+                                  {displayMoney(value)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="border-t border-white/20 py-2 text-center">
+                            Chưa chơi ván nào hoặc huề tiền!
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex flex-col justify-between gap-4 sm:flex-row">
                 <div className="title">
-                  Số lượng người chơi hiện tại:{" "}
+                  <span>Số lượng người chơi hiện tại: </span>
                   <span className="text-red-400">{getActivePlayerNames().length} người</span>
                 </div>
                 <div className="flex justify-center gap-4">
@@ -353,13 +561,7 @@ const App = () => {
                   <div
                     key={player}
                     className={`player ${
-                      !values.isActive
-                        ? "cursor-default text-white/50 hover:border-white/50"
-                        : isWin
-                        ? winners.includes(player)
-                          ? "cursor-pointer border-red-300 hover:border-red-400"
-                          : "cursor-pointer hover:border-white"
-                        : null
+                      !values.isActive ? "cursor-default text-white/50 hover:border-white/50" : null
                     }`}
                     onClick={() => handleSelect(player)}
                   >
@@ -373,27 +575,10 @@ const App = () => {
                         <div className={`item relative ${values.isActive ? "green" : "disabled"}`}>
                           <ion-icon name="reader"></ion-icon>
                           <div>{values.bet}</div>
-                          {isSettings && (
-                            <div className="absolute left-1/2 -top-3/4 -translate-x-1/2">
-                              <div className="flex cursor-pointer text-2xl text-green-200">
-                                <div className="hover:text-green-400" onClick={() => handleBet(player, true)}>
-                                  <ion-icon name="chevron-back-circle"></ion-icon>
-                                </div>
-                                <div className="hover:text-green-400" onClick={() => handleBet(player)}>
-                                  <ion-icon name="chevron-forward-circle"></ion-icon>
-                                </div>
-                              </div>
-                            </div>
-                          )}
                         </div>
                         <div className={`item ${values.isActive ? "yellow" : "disabled"}`}>
                           <ion-icon name="trophy"></ion-icon>
-                          <div>
-                            {rounds.reduce((total, cur) => {
-                              if (cur.includes(player)) total += 1;
-                              return total;
-                            }, 0)}
-                          </div>
+                          <div>{displayTrophies(player)}</div>
                         </div>
                         <div className={`item ${values.isActive ? "blue" : "disabled"}`}>
                           <ion-icon name="wallet"></ion-icon>
@@ -406,46 +591,8 @@ const App = () => {
                             )}
                           </div>
                         </div>
-                        {isSettings && (
-                          <div className="flex gap-2">
-                            <div
-                              className={`item ${values.isActive ? "remove" : "add"}`}
-                              onClick={() => handleActive(player)}
-                            >
-                              {values.isActive ? (
-                                <ion-icon name="person-remove"></ion-icon>
-                              ) : (
-                                <ion-icon name="person-add"></ion-icon>
-                              )}
-                            </div>
-                            <div className="item remove" onClick={() => handleDelete(player)}>
-                              <ion-icon name="trash"></ion-icon>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </div>
-                    {isShow &&
-                      (Object.entries(values.scores).length > 0 ? (
-                        <div className="text-end">
-                          {Object.entries(values.scores).map(([name, value]) => (
-                            <div key={name} className="border-t border-white/20 py-2">
-                              {name}:{" "}
-                              <span
-                                className={`${!values.isActive ? "opacity-50" : null} ${
-                                  value > 0 ? "text-green-400" : "text-red-400"
-                                }`}
-                              >
-                                {displayMoney(value)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="border-t border-white/20 py-2 text-center">
-                          Chưa chơi ván nào hoặc huề tiền!
-                        </div>
-                      ))}
                   </div>
                 ))}
               </div>
