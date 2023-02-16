@@ -110,7 +110,9 @@ const App = () => {
   const handleNew = () => {
     const newPlayers = getPlayers();
     setPlayers(newPlayers);
+    savePlayers(newPlayers);
     setRounds([]);
+    saveRounds([]);
     setWin(false);
     setShow(false);
     setSettings(false);
