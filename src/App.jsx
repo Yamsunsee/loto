@@ -1,19 +1,17 @@
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 const App = () => {
   const [input, setInput] = useState("Đức, Hiển, Huyền, Luân, Quyên, Thức, Tiên, Trang");
   const [unitInput, setUnitInput] = useState(10);
   const [unit, setUnit] = useState(10);
   const [rounds, setRounds] = useState([]);
-  const [isCopied, setCopied] = useState(false);
   const [isWin, setWin] = useState(false);
   const [isShow, setShow] = useState(false);
-  const [isShowResult, setShowResult] = useState(false);
+  const [isShowResult, setShowResult] = useState(true);
   const [isSettings, setSettings] = useState(false);
   const [players, setPlayers] = useState({});
   const [winners, setWinners] = useState([]);
   const [proxy, setProxy] = useState("");
-  const resultRef = useRef();
 
   useEffect(() => {
     const storeRounds = JSON.parse(localStorage.getItem("loto-rounds"));
@@ -112,9 +110,7 @@ const App = () => {
   const handleNew = () => {
     const newPlayers = getPlayers();
     setPlayers(newPlayers);
-    savePlayers(newPlayers);
     setRounds([]);
-    saveRounds([]);
     setWin(false);
     setShow(false);
     setSettings(false);
@@ -181,7 +177,6 @@ const App = () => {
   };
 
   const handleWin = () => {
-    setCopied(false);
     if (isWin && (winners.length === 1 || (winners.length > 1 && proxy.length > 0))) {
       handleCalculate();
       setWinners([]);
@@ -276,18 +271,12 @@ const App = () => {
     return parseFloat(trophies.toFixed(2));
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(resultRef.current.innerText);
-    setCopied(true);
-  };
-
-  const handleToggleResult = () => {
-    setShowResult((prev) => !prev);
-    setCopied(false);
-  };
-
   return (
-    <div className="flex min-h-screen select-none flex-col gap-8 bg-[url('/src/images/background.png')] p-8 font-bold text-white">
+    <div
+      className={`flex min-h-screen select-none flex-col justify-between gap-8 bg-[url('/src/images/background.png')] px-4 py-8 font-bold text-white sm:p-8 ${
+        isWin || isShow || isSettings ? "h-screen overflow-hidden" : null
+      }`}
+    >
       <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
         <div className="text-5xl font-black text-red-400">LÔ TÔ SHOW</div>
         {Object.keys(players).length > 0 && (
@@ -317,10 +306,12 @@ const App = () => {
       {Object.keys(players).length > 0 && (
         <div className="flex flex-col gap-8">
           {isWin ? (
-            <div className="fixed inset-0 z-10 flex flex-col items-center gap-4 bg-[url('/src/images/background.png')] p-8 sm:relative sm:flex-row sm:justify-between sm:p-0">
+            <div className="fixed inset-0 z-10 flex flex-col items-center gap-4 bg-[url('/src/images/background.png')] py-8 px-4 sm:relative sm:flex-row sm:justify-between sm:p-0">
               <div className="flex flex-col items-center gap-4 sm:flex-row">
                 <button
-                  className={`button sm:large ${isSettings ? "disabled" : isWin ? "active" : null}`}
+                  className={`button sm:large ${
+                    winners.length === 1 || (winners.length > 1 && proxy.length > 0) ? "active" : "disabled"
+                  }`}
                   onClick={handleWin}
                 >
                   <div className="flex items-center gap-2">
@@ -382,45 +373,58 @@ const App = () => {
               </div>
             </button>
           )}
+          <div className="flex flex-col justify-between gap-4 sm:flex-row">
+            <div className="title">
+              <span>Số lượng người chơi hiện tại: </span>
+              <span className="text-red-400">{getActivePlayerNames().length} người</span>
+            </div>
+            <div className="flex justify-center gap-4">
+              <button className={`button flex items-center gap-2 ${isShow ? "active" : null}`} onClick={handleShow}>
+                <ion-icon name="receipt"></ion-icon>
+                <div>Sao kê</div>
+              </button>
+              <button
+                className={`button flex items-center gap-2 ${isWin ? "disabled" : isSettings ? "active" : null}`}
+                onClick={handleSettings}
+              >
+                <ion-icon name="settings"></ion-icon>
+                <div>Điều chỉnh</div>
+              </button>
+            </div>
+          </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_6fr]">
             <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between" onClick={handleToggleResult}>
-                <div className="title">Quá trình chơi</div>
-                <div className="text-2xl text-blue-400">
+              <div className="flex items-center justify-between" onClick={() => setShowResult((prev) => !prev)}>
+                <div className="title">
+                  <span>Kết quả</span>
+                  <span className="text-sm text-red-400">
+                    {rounds.length > 0 ? ` (Đã chơi ${rounds.length} ván)` : " (Chưa chơi ván nào)"}
+                  </span>
+                </div>
+                <div className="flex items-center text-2xl text-blue-400">
                   {isShowResult ? <ion-icon name="chevron-up"></ion-icon> : <ion-icon name="chevron-down"></ion-icon>}
                 </div>
               </div>
               {isShowResult &&
                 (rounds.length > 0 ? (
-                  <div className="flex flex-col gap-4">
-                    {isCopied ? (
-                      <button className="button active flex items-center gap-2 self-center">
-                        <ion-icon name="cloud-done"></ion-icon>
-                        <div>Đã sao chép</div>
-                      </button>
-                    ) : (
-                      <button className="button flex items-center gap-2 self-center" onClick={handleCopy}>
-                        <ion-icon name="cloud"></ion-icon>
-                        <div>Sao chép</div>
-                      </button>
-                    )}
-                    <div ref={resultRef}>
-                      {rounds.map((names, index) => (
-                        <div key={names + index}>
-                          <span>Ván {index + 1}: </span>
-                          <span className="text-red-400">{names.join(", ")} </span>
-                          <span>{names.length > 1 ? "kinh trùng" : "kinh"}</span>
-                        </div>
-                      ))}
-                    </div>
+                  <div>
+                    {rounds.map((names, index) => (
+                      <div key={names + index}>
+                        <span>Ván {index + 1}: </span>
+                        <span className="text-red-400">{names.join(", ")} </span>
+                        <span>{names.length > 1 ? "kinh trùng" : "kinh"}</span>
+                      </div>
+                    ))}
                   </div>
                 ) : (
-                  <div className="border-t border-white/20 py-2">Chưa chơi ván nào!</div>
+                  <div className="border-t border-white/20 py-2 text-center">
+                    Những người chơi <br /> đã kinh sẽ hiển thị ở đây!
+                  </div>
                 ))}
             </div>
             <div className="flex flex-col gap-4">
               {isSettings && (
-                <div className="fixed inset-0 z-10 flex flex-col gap-4 overflow-scroll bg-[url('/src/images/background.png')] p-4">
+                <div className="fixed inset-0 z-10 flex flex-col gap-4 overflow-scroll bg-[url('/src/images/background.png')] py-8 px-4 sm:p-8">
                   <div className="flex items-center justify-between">
                     <button className="button flex items-center gap-2" onClick={handleSettings}>
                       <ion-icon name="arrow-undo-circle"></ion-icon>
@@ -484,7 +488,7 @@ const App = () => {
                 </div>
               )}
               {isShow && (
-                <div className="fixed inset-0 z-10 flex flex-col gap-4 overflow-scroll bg-[url('/src/images/background.png')] p-4">
+                <div className="fixed inset-0 z-10 flex flex-col gap-4 overflow-scroll bg-[url('/src/images/background.png')] py-8 px-4 sm:p-8">
                   <button className="button flex items-center gap-2" onClick={handleShow}>
                     <ion-icon name="arrow-undo-circle"></ion-icon>
                     <div>Trở về</div>
@@ -537,25 +541,6 @@ const App = () => {
                   </div>
                 </div>
               )}
-              <div className="flex flex-col justify-between gap-4 sm:flex-row">
-                <div className="title">
-                  <span>Số lượng người chơi hiện tại: </span>
-                  <span className="text-red-400">{getActivePlayerNames().length} người</span>
-                </div>
-                <div className="flex justify-center gap-4">
-                  <button className={`button flex items-center gap-2 ${isShow ? "active" : null}`} onClick={handleShow}>
-                    <ion-icon name="receipt"></ion-icon>
-                    <div>Sao kê</div>
-                  </button>
-                  <button
-                    className={`button flex items-center gap-2 ${isWin ? "disabled" : isSettings ? "active" : null}`}
-                    onClick={handleSettings}
-                  >
-                    <ion-icon name="settings"></ion-icon>
-                    <div>Điều chỉnh</div>
-                  </button>
-                </div>
-              </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 {Object.entries(players).map(([player, values]) => (
                   <div
@@ -565,7 +550,7 @@ const App = () => {
                     }`}
                     onClick={() => handleSelect(player)}
                   >
-                    <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+                    <div className="flex items-center justify-between gap-4">
                       <div
                         className={`truncate text-2xl uppercase ${winners.includes(player) ? "text-red-400" : null}`}
                       >
@@ -600,6 +585,11 @@ const App = () => {
           </div>
         </div>
       )}
+      <div className="mt-8 text-center text-sm opacity-20">
+        <a href="https://yamdev.online/" target="_blank">
+          @yamsunsee
+        </a>
+      </div>
     </div>
   );
 };
