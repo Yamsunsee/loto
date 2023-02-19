@@ -280,7 +280,7 @@ const App = () => {
       }`}
     >
       <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-        <div className="text-5xl font-black text-red-400">LÔ TÔ SHOW</div>
+        <div className="text-center text-5xl font-black text-red-400">LÔ TÔ SHOW</div>
         {Object.keys(players).length > 0 && (
           <div className="flex rounded-lg border border-white/50 px-6 py-3">{unit}k / 1 tờ</div>
         )}
@@ -308,7 +308,7 @@ const App = () => {
       {Object.keys(players).length > 0 && (
         <div className="flex flex-col gap-8">
           {isWin ? (
-            <div className="fixed inset-0 z-10 flex flex-col items-center gap-4 bg-[url('/src/images/background.png')] py-8 px-4 sm:relative sm:flex-row sm:justify-between sm:p-0">
+            <div className="fixed inset-0 z-10 flex flex-col items-center gap-4 overflow-scroll bg-[url('/src/images/background.png')] py-8 px-4 sm:relative sm:flex-row sm:justify-between sm:p-0">
               <div className="flex flex-col items-center gap-4 sm:flex-row">
                 <button
                   className={`button sm:large ${
@@ -399,7 +399,7 @@ const App = () => {
               <div className="flex items-center justify-between" onClick={() => setShowResult((prev) => !prev)}>
                 <div className="title">
                   <span>Kết quả</span>
-                  <span className="text-sm text-red-400">
+                  <span className="text-xs italic text-red-400">
                     {rounds.length > 0 ? ` (Đã chơi ${rounds.length} ván)` : " (Chưa chơi ván nào)"}
                   </span>
                 </div>
@@ -419,8 +419,8 @@ const App = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="border-t border-white/20 py-2 text-center">
-                    Những người chơi <br /> đã kinh sẽ hiển thị ở đây!
+                  <div className="border-t border-white/20 py-2 text-center text-xs italic text-white/50">
+                    Những người chơi đã kinh sẽ hiển thị ở đây!
                   </div>
                 ))}
             </div>
@@ -534,7 +534,7 @@ const App = () => {
                             ))}
                           </div>
                         ) : (
-                          <div className="border-t border-white/20 py-2 text-center">
+                          <div className="border-t border-white/20 py-2 text-center text-xs italic text-white/50">
                             Chưa chơi ván nào hoặc huề tiền!
                           </div>
                         )}
